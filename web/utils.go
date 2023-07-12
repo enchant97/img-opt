@@ -25,6 +25,6 @@ func Run(appConfig config.Config) error {
 	v := Validator{}.New()
 	e.Validator = &v
 	e.Use(appConfigMiddleware(appConfig))
-	e.GET("/defined/:path", getOptimizedImage)
+	e.GET("/images/:path", getOptimizedImage)
 	return e.Start(fmt.Sprintf("%s:%d", appConfig.Bind.Host, appConfig.Bind.Port))
 }
