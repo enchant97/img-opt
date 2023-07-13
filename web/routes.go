@@ -8,6 +8,7 @@ import (
 
 	"github.com/enchant97/img-opt/config"
 	"github.com/enchant97/img-opt/core"
+	"github.com/h2non/bimg"
 	"github.com/labstack/echo/v4"
 )
 
@@ -46,7 +47,6 @@ func getOptimizedImage(ctx echo.Context) error {
 			imageFormat = "webp"
 		}
 	} else {
-		// TODO check whether valid format
 		imageFormat = *query.Format
 	}
 
@@ -54,7 +54,6 @@ func getOptimizedImage(ctx echo.Context) error {
 	if query.Type == nil {
 		imageType = "original"
 	} else {
-		// TODO check whether valid image type
 		imageType = *query.Type
 	}
 
@@ -65,7 +64,33 @@ func getOptimizedImage(ctx echo.Context) error {
 		return ctx.File(fullPath)
 	}
 
-	// TODO
+	optimiseJob := core.OptimiseJob{
+		FullPath: fullPath,
+		Quality:  80, // XXX remove this (defined with image types)
+	}
 
-	return ctx.NoContent(200)
+	if imageFormat == "original" {
+		var err error
+		imageFormat, err = core.GetImageType(fullPath)
+		if err != nil {
+			return err
+		}
+	} else if imageFormat == "jpeg" {
+		optimiseJob.OutType = bimg.JPEG
+	} else if imageFormat == "webp" {
+		optimiseJob.OutType = bimg.WEBP
+	} else if imageFormat == "avif" {
+		optimiseJob.OutType = bimg.AVIF
+	} else {
+		return ctx.NoContent(http.StatusBadRequest)
+	}
+
+	// TODO handle image types here
+
+	img, err := optimiseJob.Optimise()
+	if err != nil {
+		return err
+	}
+
+	return ctx.Blob(http.StatusOK, "image/"+imageFormat, img)
 }

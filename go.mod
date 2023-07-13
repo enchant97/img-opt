@@ -4,6 +4,7 @@ go 1.20
 
 require (
 	github.com/go-playground/validator/v10 v10.14.1
+	github.com/h2non/bimg v1.1.9
 	github.com/labstack/echo/v4 v4.10.2
 	gopkg.in/yaml.v3 v3.0.1
 )
