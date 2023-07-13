@@ -20,6 +20,8 @@ type ImageQuery struct {
 func getOptimizedImage(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
 
+	ctx.Response().Header().Add("Vary", "Accept")
+
 	var query ImageQuery
 	if err := BindAndValidate(ctx, &query); err != nil {
 		return err
@@ -38,7 +40,7 @@ func getOptimizedImage(ctx echo.Context) error {
 	imageType := "original"
 
 	// process image format request
-	if query.Format == nil || *query.Format == "auto" {
+	if (query.Format == nil || *query.Format == "auto") && appConfig.AutoOptimize {
 		acceptHeader := ctx.Request().Header.Get("Accept")
 		nonStandardSupport := core.NonStandardFromAcceptHeader(acceptHeader)
 		if nonStandardSupport.AVIF {
@@ -46,7 +48,7 @@ func getOptimizedImage(ctx echo.Context) error {
 		} else if nonStandardSupport.WEBP {
 			imageFormat = "webp"
 		}
-	} else {
+	} else if query.Format != nil && *query.Format != "auto" {
 		imageFormat = *query.Format
 	}
 
@@ -57,8 +59,6 @@ func getOptimizedImage(ctx echo.Context) error {
 		imageType = *query.Type
 	}
 
-	ctx.Response().Header().Add("Vary", "Accept")
-
 	// just want the original
 	if imageFormat == "original" && imageType == "original" {
 		return ctx.File(fullPath)
@@ -66,26 +66,44 @@ func getOptimizedImage(ctx echo.Context) error {
 
 	optimiseJob := core.OptimiseJob{
 		FullPath: fullPath,
-		Quality:  80, // XXX remove this (defined with image types)
+		// other fields set below
 	}
 
-	if imageFormat == "original" {
+	switch imageFormat {
+	case "original":
 		var err error
 		imageFormat, err = core.GetImageType(fullPath)
 		if err != nil {
 			return err
 		}
-	} else if imageFormat == "jpeg" {
+	case "jpeg":
 		optimiseJob.OutType = bimg.JPEG
-	} else if imageFormat == "webp" {
+	case "webp":
 		optimiseJob.OutType = bimg.WEBP
-	} else if imageFormat == "avif" {
+	case "avif":
 		optimiseJob.OutType = bimg.AVIF
-	} else {
-		return ctx.NoContent(http.StatusBadRequest)
+	default:
+		return ctx.JSON(http.StatusNotFound, "unknown image format requested")
 	}
 
-	// TODO handle image types here
+	if imageFormat == "original" {
+		switch imageType {
+		case "webp":
+		case "avif":
+			optimiseJob.Quality = 60
+		default:
+			optimiseJob.Quality = 80
+		}
+	} else if optConfig, exists := appConfig.Optimizations.Types[imageType]; exists {
+		if ifConfig, exists := optConfig.Formats[imageFormat]; !exists || !ifConfig.Enable {
+			return ctx.JSON(http.StatusNotFound, "unknown image format requested")
+		} else {
+			optimiseJob.Quality = ifConfig.Quality
+			optimiseJob.Width = &optConfig.Width
+		}
+	} else {
+		return ctx.JSON(http.StatusNotFound, "unknown image type requested")
+	}
 
 	img, err := optimiseJob.Optimise()
 	if err != nil {

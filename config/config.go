@@ -1,25 +1,18 @@
 package config
 
-type OptimizationFormatConfig struct {
+type TypeFormatConfig struct {
 	Enable  bool `yaml:"enable" validate:"required"`
-	Quality uint `yaml:"quality" validate:"required"`
+	Quality int  `yaml:"quality" validate:"required"`
 }
 
-type OptimizationFormatsConfig struct {
-	JPEG OptimizationFormatConfig `yaml:"jpeg"`
-	WebP OptimizationFormatConfig `yaml:"webp"`
-	AVIF OptimizationFormatConfig `yaml:"avif"`
+type TypeConfig struct {
+	Width   int                         `yaml:"width" validate:"required"`
+	Formats map[string]TypeFormatConfig `yaml:"formats" validate:"required"`
 }
 
 type OptimizationConfig struct {
-	Name    string                    `yaml:"name" validate:"required"`
-	Width   uint                      `yaml:"width" validate:"required"`
-	Formats OptimizationFormatsConfig `yaml:"formats" validate:"required"`
-}
-
-type DefinedConfig struct {
-	Enable        bool                 `yaml:"enable" validate:"required"`
-	Optimizations []OptimizationConfig `yaml:"optimizations"`
+	Enable bool                  `yaml:"enable" validate:"required"`
+	Types  map[string]TypeConfig `yaml:"Types"`
 }
 
 type BindConfig struct {
@@ -28,7 +21,8 @@ type BindConfig struct {
 }
 
 type Config struct {
-	Bind          BindConfig    `yaml:"bind" validate:"required"`
-	OriginalsBase string        `yaml:"originals_base" validate:"required"`
-	Defined       DefinedConfig `yaml:"defined"`
+	Bind          BindConfig         `yaml:"bind" validate:"required"`
+	OriginalsBase string             `yaml:"originals_base" validate:"required"`
+	AutoOptimize  bool               `yaml:"auto_optimize" validate:"required"`
+	Optimizations OptimizationConfig `yaml:"optimizations" validate:"required"`
 }
