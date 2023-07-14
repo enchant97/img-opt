@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"strings"
 
 	"github.com/enchant97/img-opt/config"
 	"github.com/enchant97/img-opt/core"
@@ -14,16 +15,31 @@ import (
 
 func getAutoOptimized(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
+	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
 
 	ctx.Response().Header().Add("Vary", "Accept")
-
-	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
+	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
 
 	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
 		return ctx.NoContent(http.StatusNotFound)
 	} else if err != nil {
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
+		return err
+	} else {
+		ctx.Response().Header().Add("ETag", "\""+currentETag+"\"")
+		if headerValue := ctx.Request().Header.Get("If-None-Match"); headerValue != "" {
+			tags := strings.Split(headerValue, ",")
+			for _, tag := range tags {
+				tag = strings.Trim(strings.TrimSpace(tag), "\"")
+				if tag == currentETag {
+					return ctx.NoContent(http.StatusNotModified)
+				}
+			}
+		}
 	}
 
 	// skip any other unneeded processing
@@ -84,19 +100,35 @@ type ImageQuery struct {
 
 func getTypeOptimizedImage(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
+	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
+
+	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
 
 	var query ImageQuery
 	if err := BindAndValidate(ctx, &query); err != nil {
 		return err
 	}
 
-	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
-
 	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
 		return ctx.NoContent(http.StatusNotFound)
 	} else if err != nil {
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
+	}
+
+	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
+		return err
+	} else {
+		ctx.Response().Header().Add("ETag", "\""+currentETag+"\"")
+		if headerValue := ctx.Request().Header.Get("If-None-Match"); headerValue != "" {
+			tags := strings.Split(headerValue, ",")
+			for _, tag := range tags {
+				tag = strings.Trim(strings.TrimSpace(tag), "\"")
+				if tag == currentETag {
+					return ctx.NoContent(http.StatusNotModified)
+				}
+			}
+		}
 	}
 
 	// just want the original
