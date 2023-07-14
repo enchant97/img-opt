@@ -21,6 +21,7 @@ type BindConfig struct {
 
 type AutoOptimizeConfig struct {
 	Enable bool `yaml:"enable" validate:"required"`
+	AVIF   bool `yaml:"avif"`
 }
 
 type Config struct {

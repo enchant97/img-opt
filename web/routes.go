@@ -55,7 +55,7 @@ func getAutoOptimized(ctx echo.Context) error {
 
 	acceptHeader := ctx.Request().Header.Get("Accept")
 	nonStandardSupport := core.NonStandardFromAcceptHeader(acceptHeader)
-	if nonStandardSupport.AVIF {
+	if nonStandardSupport.AVIF && appConfig.AutoOptimize.AVIF {
 		imageFormat = "avif"
 	} else if nonStandardSupport.WEBP {
 		imageFormat = "webp"
