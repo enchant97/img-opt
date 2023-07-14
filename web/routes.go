@@ -40,7 +40,7 @@ func getOptimizedImage(ctx echo.Context) error {
 	imageType := "original"
 
 	// process image format request
-	if (query.Format == nil || *query.Format == "auto") && appConfig.AutoOptimize {
+	if (query.Format == nil || *query.Format == "auto") && appConfig.AutoOptimize.Enable {
 		acceptHeader := ctx.Request().Header.Get("Accept")
 		nonStandardSupport := core.NonStandardFromAcceptHeader(acceptHeader)
 		if nonStandardSupport.AVIF {
@@ -94,8 +94,8 @@ func getOptimizedImage(ctx echo.Context) error {
 		default:
 			optimiseJob.Quality = 80
 		}
-	} else if optConfig, exists := appConfig.Optimizations.Types[imageType]; exists {
-		if ifConfig, exists := optConfig.Formats[imageFormat]; !exists || !ifConfig.Enable {
+	} else if optConfig, exists := appConfig.TypeOptimize.Types[imageType]; exists {
+		if ifConfig, exists := optConfig.Formats[imageFormat]; !exists {
 			return ctx.JSON(http.StatusNotFound, "unknown image format requested")
 		} else {
 			optimiseJob.Quality = ifConfig.Quality

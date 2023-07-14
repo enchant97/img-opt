@@ -1,8 +1,7 @@
 package config
 
 type TypeFormatConfig struct {
-	Enable  bool `yaml:"enable" validate:"required"`
-	Quality int  `yaml:"quality" validate:"required"`
+	Quality int `yaml:"quality" validate:"required"`
 }
 
 type TypeConfig struct {
@@ -10,9 +9,9 @@ type TypeConfig struct {
 	Formats map[string]TypeFormatConfig `yaml:"formats" validate:"required"`
 }
 
-type OptimizationConfig struct {
+type TypeOptimizeConfig struct {
 	Enable bool                  `yaml:"enable" validate:"required"`
-	Types  map[string]TypeConfig `yaml:"Types"`
+	Types  map[string]TypeConfig `yaml:"types"`
 }
 
 type BindConfig struct {
@@ -20,9 +19,13 @@ type BindConfig struct {
 	Port uint   `yaml:"port" validate:"required"`
 }
 
+type AutoOptimizeConfig struct {
+	Enable bool `yaml:"enable" validate:"required"`
+}
+
 type Config struct {
 	Bind          BindConfig         `yaml:"bind" validate:"required"`
 	OriginalsBase string             `yaml:"originals_base" validate:"required"`
-	AutoOptimize  bool               `yaml:"auto_optimize" validate:"required"`
-	Optimizations OptimizationConfig `yaml:"optimizations" validate:"required"`
+	AutoOptimize  AutoOptimizeConfig `yaml:"auto_optimize" validate:"required"`
+	TypeOptimize  TypeOptimizeConfig `yaml:"type_optimize" validate:"required"`
 }
