@@ -25,6 +25,7 @@ type AutoOptimizeConfig struct {
 
 type Config struct {
 	Bind          BindConfig         `yaml:"bind" validate:"required"`
+	JobLimit      uint               `yaml:"job_limit"`
 	OriginalsBase string             `yaml:"originals_base" validate:"required"`
 	AutoOptimize  AutoOptimizeConfig `yaml:"auto_optimize" validate:"required"`
 	TypeOptimize  TypeOptimizeConfig `yaml:"type_optimize" validate:"required"`

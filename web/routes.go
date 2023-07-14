@@ -13,6 +13,7 @@ import (
 
 func getAutoOptimized(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
+	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
 	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
 
 	ctx.Response().Header().Add("Vary", "Accept")
@@ -81,6 +82,14 @@ func getAutoOptimized(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusInternalServerError)
 	}
 
+	if err := jobLimiter.AddJob(); err != nil {
+		ctx.Response().Header().Del("Cache-Control")
+		ctx.Response().Header().Add("Retry-After", "5")
+		return ctx.NoContent(http.StatusServiceUnavailable)
+	} else {
+		defer jobLimiter.RemoveJob()
+	}
+
 	img, err := optimiseJob.Optimise()
 	if err != nil {
 		return err
@@ -98,6 +107,7 @@ type ImageQuery struct {
 
 func getTypeOptimizedImage(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
+	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
 	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
 
 	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
@@ -165,6 +175,14 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 	} else {
 		ctx.Response().Header().Add("Content-Optimized", "false")
 		return ctx.File(fullPath)
+	}
+
+	if err := jobLimiter.AddJob(); err != nil {
+		ctx.Response().Header().Del("Cache-Control")
+		ctx.Response().Header().Add("Retry-After", "5")
+		return ctx.NoContent(http.StatusServiceUnavailable)
+	} else {
+		defer jobLimiter.RemoveJob()
 	}
 
 	img, err := optimiseJob.Optimise()

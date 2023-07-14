@@ -24,8 +24,12 @@ func Run(appConfig config.Config) error {
 	e.Use(middleware.Logger())
 	v := Validator{}.New()
 	e.Validator = &v
-	e.Use(appConfigMiddleware(appConfig))
-	e.GET("/images/a/:path", getAutoOptimized)
-	e.GET("/images/t/:path", getTypeOptimizedImage)
-	return e.Start(fmt.Sprintf("%s:%d", appConfig.Bind.Host, appConfig.Bind.Port))
+	e.Use(
+		appConfigMiddleware(appConfig),
+		jobRunLimiterMiddleware(appConfig),
+	)
+	e.GET("/a/:path", getAutoOptimized)
+	e.GET("/t/:path", getTypeOptimizedImage)
+	address := fmt.Sprintf("%s:%d", appConfig.Bind.Host, appConfig.Bind.Port)
+	return e.Start(address)
 }
