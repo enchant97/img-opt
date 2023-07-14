@@ -1,9 +1,7 @@
 package web
 
 import (
-	"errors"
 	"net/http"
-	"os"
 	"path"
 	"strings"
 
@@ -20,11 +18,11 @@ func getAutoOptimized(ctx echo.Context) error {
 	ctx.Response().Header().Add("Vary", "Accept")
 	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
 
-	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
-		return ctx.NoContent(http.StatusNotFound)
-	} else if err != nil {
+	if exists, err := core.DoesFileExist(fullPath); err != nil {
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
+	} else if !exists {
+		return ctx.NoContent(http.StatusNotFound)
 	}
 
 	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
@@ -109,11 +107,11 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 		return err
 	}
 
-	if _, err := os.Stat(fullPath); errors.Is(err, os.ErrNotExist) {
-		return ctx.NoContent(http.StatusNotFound)
-	} else if err != nil {
+	if exists, err := core.DoesFileExist(fullPath); err != nil {
 		ctx.Logger().Error(err)
 		return ctx.NoContent(http.StatusInternalServerError)
+	} else if !exists {
+		return ctx.NoContent(http.StatusNotFound)
 	}
 
 	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"hash/crc64"
 	"io"
@@ -42,4 +43,13 @@ func CreateETagFromFile(filePath string) (string, error) {
 		}
 	}
 	return fmt.Sprintf("%x", h.Sum64()), nil
+}
+
+func DoesFileExist(filePath string) (bool, error) {
+	if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+		return false, nil
+	} else if err != nil {
+		return false, err
+	}
+	return true, nil
 }
