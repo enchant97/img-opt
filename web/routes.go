@@ -11,6 +11,39 @@ import (
 	"github.com/labstack/echo/v4"
 )
 
+func getOriginalImage(ctx echo.Context) error {
+	appConfig := ctx.Get(AppConfigKey).(config.Config)
+	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
+
+	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
+
+	if exists, err := core.DoesFileExist(fullPath); err != nil {
+		ctx.Logger().Error(err)
+		return ctx.NoContent(http.StatusInternalServerError)
+	} else if !exists {
+		return ctx.NoContent(http.StatusNotFound)
+	}
+
+	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
+		return err
+	} else {
+		ctx.Response().Header().Add("ETag", "\""+currentETag+"\"")
+		if headerValue := ctx.Request().Header.Get("If-None-Match"); headerValue != "" {
+			tags := strings.Split(headerValue, ",")
+			for _, tag := range tags {
+				tag = strings.Trim(strings.TrimSpace(tag), "\"")
+				if tag == currentETag {
+					return ctx.NoContent(http.StatusNotModified)
+				}
+			}
+		}
+	}
+
+    ctx.Response().Header().Add("Content-Optimized", "false")
+
+	return ctx.File(fullPath)
+}
+
 func getAutoOptimized(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
 	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
@@ -97,7 +130,6 @@ func getAutoOptimized(ctx echo.Context) error {
 
 	ctx.Response().Header().Add("Content-Optimized", "true")
 	return ctx.Blob(http.StatusOK, "image/"+imageFormat, img)
-
 }
 
 type ImageQuery struct {

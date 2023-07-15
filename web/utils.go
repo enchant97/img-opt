@@ -28,6 +28,7 @@ func Run(appConfig config.Config) error {
 		appConfigMiddleware(appConfig),
 		jobRunLimiterMiddleware(appConfig),
 	)
+	e.GET("/o/:path", getOriginalImage)
 	e.GET("/a/:path", getAutoOptimized)
 	e.GET("/t/:path", getTypeOptimizedImage)
 	address := fmt.Sprintf("%s:%d", appConfig.Bind.Host, appConfig.Bind.Port)
