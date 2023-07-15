@@ -39,7 +39,7 @@ func getOriginalImage(ctx echo.Context) error {
 		}
 	}
 
-    ctx.Response().Header().Add("Content-Optimized", "false")
+	ctx.Response().Header().Add("Content-Optimized", "false")
 
 	return ctx.File(fullPath)
 }
@@ -84,6 +84,12 @@ func getAutoOptimized(ctx echo.Context) error {
 	originalImageFormat, err := core.GetImageType(fullPath)
 	if err != nil {
 		return err
+	}
+
+	if originalImageFormat == "svg" {
+		// TODO optimise svg content somehow?
+		ctx.Response().Header().Add("Content-Optimized", "false")
+		return ctx.File(fullPath)
 	}
 
 	acceptHeader := ctx.Request().Header.Get("Accept")
@@ -191,6 +197,10 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 	}
 
 	switch query.Format {
+	case "svg":
+		// TODO optimise svg content somehow?
+		ctx.Response().Header().Add("Content-Optimized", "false")
+		return ctx.File(fullPath)
 	case "jpeg":
 		optimiseJob.OutType = bimg.JPEG
 	case "webp":
@@ -202,11 +212,12 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 	if optConfig, exists := appConfig.TypeOptimize.Types[query.Type]; exists {
 		if ifConfig, exists := optConfig.Formats[query.Format]; exists {
 			optimiseJob.Quality = ifConfig.Quality
+			optimiseJob.Width = &optConfig.Width
+		} else {
+			return ctx.NoContent(http.StatusNotFound)
 		}
-		optimiseJob.Width = &optConfig.Width
 	} else {
-		ctx.Response().Header().Add("Content-Optimized", "false")
-		return ctx.File(fullPath)
+		return ctx.NoContent(http.StatusNotFound)
 	}
 
 	if err := jobLimiter.AddJob(); err != nil {
