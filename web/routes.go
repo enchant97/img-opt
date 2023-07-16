@@ -2,6 +2,7 @@ package web
 
 import (
 	"net/http"
+	"net/url"
 	"path"
 	"strings"
 
@@ -13,7 +14,11 @@ import (
 
 func getOriginalImage(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
-	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
+	relativePath, err := url.QueryUnescape(ctx.Param("path"))
+	if err != nil {
+		return err
+	}
+	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
 	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
 
@@ -47,7 +52,11 @@ func getOriginalImage(ctx echo.Context) error {
 func getAutoOptimized(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
 	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
-	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
+	relativePath, err := url.QueryUnescape(ctx.Param("path"))
+	if err != nil {
+		return err
+	}
+	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
 	ctx.Response().Header().Add("Vary", "Accept")
 	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
@@ -146,7 +155,11 @@ type ImageQuery struct {
 func getTypeOptimizedImage(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
 	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
-	fullPath := path.Join(appConfig.OriginalsBase, ctx.Param("path"))
+	relativePath, err := url.QueryUnescape(ctx.Param("path"))
+	if err != nil {
+		return err
+	}
+	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
 	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
 
