@@ -7,19 +7,50 @@ import (
 	"io"
 	"os"
 
-	"github.com/h2non/bimg"
+	"github.com/davidbyttow/govips/v2/vips"
 )
 
-func GetImageType(imagePath string) (string, error) {
-	rawImage, err := bimg.Read(imagePath)
+var UnknownImageTypeErr = errors.New("unknown image type")
+
+var ImageTypeToFormatName = map[vips.ImageType]string{
+	vips.ImageTypeJPEG: "jpeg",
+	vips.ImageTypePNG:  "png",
+	vips.ImageTypeWEBP: "webp",
+	vips.ImageTypeAVIF: "avif",
+}
+
+var FormatNameToImageType = map[string]vips.ImageType{
+	"jpeg": vips.ImageTypeJPEG,
+	"png":  vips.ImageTypePNG,
+	"webp": vips.ImageTypeWEBP,
+	"avif": vips.ImageTypeAVIF,
+}
+
+var ImageTypeToMime = map[vips.ImageType]string{
+	vips.ImageTypeJPEG: "image/jpeg",
+	vips.ImageTypePNG:  "image/png",
+	vips.ImageTypeWEBP: "image/webp",
+	vips.ImageTypeAVIF: "image/avif",
+}
+
+func ReadWholeFile(filePath string) ([]byte, error) {
+	f, err := os.Open(filePath)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
-	loadedImage := bimg.NewImage(rawImage)
+	return io.ReadAll(f)
+}
+
+func DetermineImageType(imagePath string) (vips.ImageType, error) {
+	buf, err := ReadWholeFile(imagePath)
 	if err != nil {
-		return "", err
+		return 0, err
 	}
-	return loadedImage.Type(), nil
+	imageType := vips.DetermineImageType(buf)
+	if imageType == vips.ImageTypeUnknown {
+		return imageType, UnknownImageTypeErr
+	}
+	return imageType, nil
 }
 
 func CreateETagFromFile(filePath string) (string, error) {

@@ -5,8 +5,8 @@ type TypeFormatConfig struct {
 }
 
 type TypeConfig struct {
-	Width   int                         `yaml:"width" validate:"required"`
-	Formats map[string]TypeFormatConfig `yaml:"formats" validate:"required"`
+	MaxWidth int                         `yaml:"max_width" validate:"required"`
+	Formats  map[string]TypeFormatConfig `yaml:"formats" validate:"required"`
 }
 
 type TypeOptimizeConfig struct {
@@ -20,8 +20,9 @@ type BindConfig struct {
 }
 
 type AutoOptimizeConfig struct {
-	Enable bool `yaml:"enable" validate:"required"`
-	AVIF   bool `yaml:"avif"`
+	Enable   bool `yaml:"enable" validate:"required"`
+	MaxWidth *int `yaml:"max_width"`
+	AVIF     bool `yaml:"avif"`
 }
 
 type Config struct {

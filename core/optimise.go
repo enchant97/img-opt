@@ -1,31 +1,56 @@
 package core
 
-import "github.com/h2non/bimg"
+import (
+	"errors"
+
+	"github.com/davidbyttow/govips/v2/vips"
+)
+
+var UnsupportedImageTypeErr = errors.New("unsupported image type")
 
 type OptimiseJob struct {
 	FullPath string
-	OutType  bimg.ImageType
-	Width    *int
+	OutType  vips.ImageType
+	MaxWidth *int
 	Quality  int
 }
 
 func (job *OptimiseJob) Optimise() ([]byte, error) {
-	rawImage, err := bimg.Read(job.FullPath)
+	img, err := vips.NewImageFromFile(job.FullPath)
 	if err != nil {
 		return nil, err
 	}
-	loadedImage := bimg.NewImage(rawImage)
-	if err != nil {
+	if err := img.AutoRotate(); err != nil {
 		return nil, err
 	}
-	options := bimg.Options{
-		Type:          job.OutType,
-		StripMetadata: true,
-		Quality:       int(job.Quality),
+	if job.MaxWidth != nil && img.Width() > *job.MaxWidth {
+		img.Thumbnail(*job.MaxWidth, *job.MaxWidth, vips.InterestingNone)
 	}
-	if job.Width != nil {
-		options.Width = *job.Width
+	var imgBytes []byte
+
+	switch job.OutType {
+	case vips.ImageTypeJPEG:
+		p := vips.NewJpegExportParams()
+		p.StripMetadata = true
+		p.Quality = job.Quality
+		imgBytes, _, err = img.ExportJpeg(p)
+	case vips.ImageTypePNG:
+		p := vips.NewPngExportParams()
+		p.StripMetadata = true
+		p.Quality = job.Quality
+		imgBytes, _, err = img.ExportPng(p)
+	case vips.ImageTypeWEBP:
+		p := vips.NewWebpExportParams()
+		p.StripMetadata = true
+		p.Quality = job.Quality
+		imgBytes, _, err = img.ExportWebp(p)
+	case vips.ImageTypeAVIF:
+		p := vips.NewAvifExportParams()
+		p.StripMetadata = true
+		p.Quality = job.Quality
+		imgBytes, _, err = img.ExportAvif(p)
+	default:
+		return imgBytes, UnsupportedImageTypeErr
 	}
-	rawImage, err = loadedImage.Process(options)
-	return rawImage, err
+	return imgBytes, err
 }

@@ -3,8 +3,8 @@ module github.com/enchant97/img-opt
 go 1.20
 
 require (
+	github.com/davidbyttow/govips/v2 v2.13.0
 	github.com/go-playground/validator/v10 v10.14.1
-	github.com/h2non/bimg v1.1.9
 	github.com/labstack/echo/v4 v4.10.2
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -21,6 +21,7 @@ require (
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasttemplate v1.2.2 // indirect
 	golang.org/x/crypto v0.11.0 // indirect
+	golang.org/x/image v0.9.0 // indirect
 	golang.org/x/net v0.12.0 // indirect
 	golang.org/x/sys v0.10.0 // indirect
 	golang.org/x/text v0.11.0 // indirect

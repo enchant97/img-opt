@@ -4,11 +4,10 @@ import (
 	"net/http"
 	"net/url"
 	"path"
-	"strings"
 
+	"github.com/davidbyttow/govips/v2/vips"
 	"github.com/enchant97/img-opt/config"
 	"github.com/enchant97/img-opt/core"
-	"github.com/h2non/bimg"
 	"github.com/labstack/echo/v4"
 )
 
@@ -31,17 +30,8 @@ func getOriginalImage(ctx echo.Context) error {
 
 	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
 		return err
-	} else {
-		ctx.Response().Header().Add("ETag", "\""+currentETag+"\"")
-		if headerValue := ctx.Request().Header.Get("If-None-Match"); headerValue != "" {
-			tags := strings.Split(headerValue, ",")
-			for _, tag := range tags {
-				tag = strings.Trim(strings.TrimSpace(tag), "\"")
-				if tag == currentETag {
-					return ctx.NoContent(http.StatusNotModified)
-				}
-			}
-		}
+	} else if needNewContent := HandleETag(ctx, currentETag); !needNewContent {
+		return ctx.NoContent(http.StatusNotModified)
 	}
 
 	ctx.Response().Header().Add("Content-Optimized", "false")
@@ -70,17 +60,8 @@ func getAutoOptimized(ctx echo.Context) error {
 
 	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
 		return err
-	} else {
-		ctx.Response().Header().Add("ETag", "\""+currentETag+"\"")
-		if headerValue := ctx.Request().Header.Get("If-None-Match"); headerValue != "" {
-			tags := strings.Split(headerValue, ",")
-			for _, tag := range tags {
-				tag = strings.Trim(strings.TrimSpace(tag), "\"")
-				if tag == currentETag {
-					return ctx.NoContent(http.StatusNotModified)
-				}
-			}
-		}
+	} else if needNewContent := HandleETag(ctx, currentETag); !needNewContent {
+		return ctx.NoContent(http.StatusNotModified)
 	}
 
 	// skip any other unneeded processing
@@ -89,13 +70,14 @@ func getAutoOptimized(ctx echo.Context) error {
 		return ctx.File(fullPath)
 	}
 
-	imageFormat := ""
-	originalImageFormat, err := core.GetImageType(fullPath)
+	originalImageFormat, err := core.DetermineImageType(fullPath)
 	if err != nil {
 		return err
 	}
 
-	if originalImageFormat == "svg" {
+	imageFormat := originalImageFormat
+
+	if originalImageFormat == vips.ImageTypeSVG {
 		// TODO optimise svg content somehow?
 		ctx.Response().Header().Add("Content-Optimized", "false")
 		return ctx.File(fullPath)
@@ -104,30 +86,26 @@ func getAutoOptimized(ctx echo.Context) error {
 	acceptHeader := ctx.Request().Header.Get("Accept")
 	nonStandardSupport := core.NonStandardFromAcceptHeader(acceptHeader)
 	if nonStandardSupport.AVIF && appConfig.AutoOptimize.AVIF {
-		imageFormat = "avif"
+		imageFormat = vips.ImageTypeAVIF
 	} else if nonStandardSupport.WEBP {
-		imageFormat = "webp"
-	}
-
-	if imageFormat == "" || imageFormat == originalImageFormat {
-		ctx.Response().Header().Add("Content-Optimized", "false")
-		return ctx.File(fullPath)
+		imageFormat = vips.ImageTypeWEBP
 	}
 
 	optimiseJob := core.OptimiseJob{
 		FullPath: fullPath,
+		OutType:  imageFormat,
+		MaxWidth: appConfig.AutoOptimize.MaxWidth,
 		// other fields set below
 	}
 
 	switch imageFormat {
-	case "avif":
-		optimiseJob.OutType = bimg.AVIF
-		optimiseJob.Quality = 60
-	case "webp":
-		optimiseJob.OutType = bimg.WEBP
-		optimiseJob.Quality = 60
+	case vips.ImageTypeJPEG:
+	case vips.ImageTypeWEBP:
+	case vips.ImageTypeAVIF:
+		optimiseJob.Quality = 80
 	default:
-		return ctx.NoContent(http.StatusInternalServerError)
+		ctx.Response().Header().Add("Content-Optimized", "false")
+		return ctx.File(fullPath)
 	}
 
 	if err := jobLimiter.AddJob(); err != nil {
@@ -144,7 +122,7 @@ func getAutoOptimized(ctx echo.Context) error {
 	}
 
 	ctx.Response().Header().Add("Content-Optimized", "true")
-	return ctx.Blob(http.StatusOK, "image/"+imageFormat, img)
+	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[imageFormat], img)
 }
 
 type ImageQuery struct {
@@ -177,17 +155,8 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 
 	if currentETag, err := core.CreateETagFromFile(fullPath); err != nil {
 		return err
-	} else {
-		ctx.Response().Header().Add("ETag", "\""+currentETag+"\"")
-		if headerValue := ctx.Request().Header.Get("If-None-Match"); headerValue != "" {
-			tags := strings.Split(headerValue, ",")
-			for _, tag := range tags {
-				tag = strings.Trim(strings.TrimSpace(tag), "\"")
-				if tag == currentETag {
-					return ctx.NoContent(http.StatusNotModified)
-				}
-			}
-		}
+	} else if needNewContent := HandleETag(ctx, currentETag); !needNewContent {
+		return ctx.NoContent(http.StatusNotModified)
 	}
 
 	// just want the original
@@ -196,41 +165,43 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 		return ctx.File(fullPath)
 	}
 
-	optimiseJob := core.OptimiseJob{
-		FullPath: fullPath,
-		// other fields set below
-	}
+	var imageFormat vips.ImageType
 
 	if query.Format == "" {
 		var err error
-		query.Format, err = core.GetImageType(fullPath)
+		imageFormat, err = core.DetermineImageType(fullPath)
 		if err != nil {
 			return err
 		}
+		if imageFormat == vips.ImageTypeSVG {
+			ctx.Response().Header().Add("Content-Optimized", "false")
+			return ctx.File(fullPath)
+		}
+		if _, compatible := core.ImageTypeToFormatName[imageFormat]; !compatible {
+			return ctx.JSON(http.StatusBadRequest, "unsupported format requested")
+		}
+	} else {
+		var compatible bool
+		if imageFormat, compatible = core.FormatNameToImageType[query.Format]; !compatible {
+			return ctx.JSON(http.StatusBadRequest, "unsupported format requested")
+		}
 	}
 
-	switch query.Format {
-	case "svg":
-		// TODO optimise svg content somehow?
-		ctx.Response().Header().Add("Content-Optimized", "false")
-		return ctx.File(fullPath)
-	case "jpeg":
-		optimiseJob.OutType = bimg.JPEG
-	case "webp":
-		optimiseJob.OutType = bimg.WEBP
-	case "avif":
-		optimiseJob.OutType = bimg.AVIF
+	optimiseJob := core.OptimiseJob{
+		FullPath: fullPath,
+		OutType:  imageFormat,
+		// other fields set below
 	}
 
 	if optConfig, exists := appConfig.TypeOptimize.Types[query.Type]; exists {
 		if ifConfig, exists := optConfig.Formats[query.Format]; exists {
 			optimiseJob.Quality = ifConfig.Quality
-			optimiseJob.Width = &optConfig.Width
+			optimiseJob.MaxWidth = &optConfig.MaxWidth
 		} else {
-			return ctx.NoContent(http.StatusNotFound)
+			return ctx.JSON(http.StatusBadRequest, "unsupported type+format requested")
 		}
 	} else {
-		return ctx.NoContent(http.StatusNotFound)
+		return ctx.JSON(http.StatusBadRequest, "unsupported type requested")
 	}
 
 	if err := jobLimiter.AddJob(); err != nil {
@@ -247,5 +218,5 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 	}
 
 	ctx.Response().Header().Add("Content-Optimized", "true")
-	return ctx.Blob(http.StatusOK, "image/"+query.Format, img)
+	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[imageFormat], img)
 }
