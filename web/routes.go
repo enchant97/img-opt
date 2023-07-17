@@ -1,6 +1,7 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -23,8 +24,7 @@ func getOriginalImage(ctx echo.Context) error {
 	SetCacheHeader(ctx, appConfig)
 
 	if exists, err := core.DoesFileExist(fullPath); err != nil {
-		ctx.Logger().Error(err)
-		return ctx.NoContent(http.StatusInternalServerError)
+		return err
 	} else if !exists {
 		return ctx.NoContent(http.StatusNotFound)
 	}
@@ -54,7 +54,7 @@ func getAutoOptimized(ctx echo.Context) error {
 
 	if exists, err := core.DoesFileExist(fullPath); err != nil {
 		ctx.Logger().Error(err)
-		return ctx.NoContent(http.StatusInternalServerError)
+		return err
 	} else if !exists {
 		return ctx.NoContent(http.StatusNotFound)
 	}
@@ -65,21 +65,19 @@ func getAutoOptimized(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusNotModified)
 	}
 
-	// skip any other unneeded processing
+	// it's disabled!
 	if !appConfig.AutoOptimize.Enable {
 		ctx.Response().Header().Set("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
 	originalImageFormat, err := core.DetermineImageType(fullPath)
-	if err != nil {
-		return err
-	}
-
-	if originalImageFormat == vips.ImageTypeSVG {
-		// TODO optimise svg content somehow?
+	if (err != nil && errors.Is(core.UnknownImageTypeErr, err)) ||
+		(err == nil && originalImageFormat == vips.ImageTypeSVG) {
 		ctx.Response().Header().Set("Content-Optimized", "false")
 		return ctx.File(fullPath)
+	} else if err != nil {
+		return err
 	}
 
 	// check if browser supports 'fancy' formats
@@ -160,8 +158,7 @@ func getPresetOptimizedImage(ctx echo.Context) error {
 	}
 
 	if exists, err := core.DoesFileExist(fullPath); err != nil {
-		ctx.Logger().Error(err)
-		return ctx.NoContent(http.StatusInternalServerError)
+		return err
 	} else if !exists {
 		return ctx.NoContent(http.StatusNotFound)
 	}
@@ -170,6 +167,12 @@ func getPresetOptimizedImage(ctx echo.Context) error {
 		return err
 	} else if needNewContent := HandleETag(ctx, currentETag); !needNewContent {
 		return ctx.NoContent(http.StatusNotModified)
+	}
+
+	// it's disabled!
+	if !appConfig.PresetOptimize.Enable {
+		ctx.Response().Header().Set("Content-Optimized", "false")
+		return ctx.File(fullPath)
 	}
 
 	// just want the original
