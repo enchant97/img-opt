@@ -58,6 +58,9 @@ func Run(appConfig config.Config) error {
 		appConfigMiddleware(appConfig),
 		jobRunLimiterMiddleware(appConfig),
 	)
+	if appConfig.Metrics {
+		e.GET("/metrics", getMetrics)
+	}
 	e.GET("/o/:path", getOriginalImage)
 	e.GET("/a/:path", getAutoOptimized)
 	e.GET("/t/:path", getTypeOptimizedImage)

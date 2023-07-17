@@ -1,6 +1,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -219,4 +220,33 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 
 	ctx.Response().Header().Add("Content-Optimized", "true")
 	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[imageFormat], img)
+}
+
+func getMetrics(ctx echo.Context) error {
+	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
+	var vipsMemStats vips.MemoryStats
+	vips.ReadVipsMemStats(&vipsMemStats)
+	content := fmt.Sprintf(`# HELP active_jobs Current image processing jobs
+# TYPE active_jobs gauge
+active_jobs %d
+# HELP vips_mem Current memory used by libvips
+# TYPE vips_mem gauge
+vips_mem %d
+# HELP vips_mem_high Highest memory used by libvips
+# TYPE vips_mem_high counter
+vips_mem_high %d
+# HELP vips_allocs Current memory allocations used by libvips
+# TYPE vips_allocs gauge
+vips_allocs %d
+# HELP vips_files Current 'files' open by libvips
+# TYPE vips_files gauge
+vips_files %d
+`,
+		jobLimiter.Jobs(),
+		vipsMemStats.Mem,
+		vipsMemStats.MemHigh,
+		vipsMemStats.Allocs,
+		vipsMemStats.Files,
+	)
+	return ctx.String(http.StatusOK, content)
 }

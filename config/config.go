@@ -32,6 +32,7 @@ type BrowserTTLConfig struct {
 
 type Config struct {
 	Bind          BindConfig         `yaml:"bind" validate:"required"`
+	Metrics       bool               `yaml:"metrics"`
 	JobLimit      uint               `yaml:"job_limit"`
 	BrowserTTL    *BrowserTTLConfig  `yaml:"browser_ttl"`
 	OriginalsBase string             `yaml:"originals_base" validate:"required"`
