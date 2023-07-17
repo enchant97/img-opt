@@ -26,9 +26,9 @@ type BindConfig struct {
 }
 
 type AutoOptimizeConfig struct {
-	Enable   bool `yaml:"enable" validate:"required"`
-	MaxWidth *int `yaml:"max_width"`
-	AVIF     bool `yaml:"avif"`
+	Enable   bool                    `yaml:"enable" validate:"required"`
+	MaxWidth *int                    `yaml:"max_width"`
+	Formats  map[string]FormatConfig `yaml:"formats" validate:"required"`
 }
 
 type BrowserTTLConfig struct {

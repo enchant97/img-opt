@@ -76,39 +76,47 @@ func getAutoOptimized(ctx echo.Context) error {
 		return err
 	}
 
-	imageFormat := originalImageFormat
-
 	if originalImageFormat == vips.ImageTypeSVG {
 		// TODO optimise svg content somehow?
 		ctx.Response().Header().Add("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
+	// check if browser supports 'fancy' formats
 	acceptHeader := ctx.Request().Header.Get("Accept")
 	nonStandardSupport := core.NonStandardFromAcceptHeader(acceptHeader)
-	if nonStandardSupport.AVIF && appConfig.AutoOptimize.AVIF {
-		imageFormat = vips.ImageTypeAVIF
-	} else if nonStandardSupport.WEBP {
-		imageFormat = vips.ImageTypeWEBP
-	}
 
 	optimiseJob := core.OptimiseJob{
 		FullPath: fullPath,
-		OutType:  imageFormat,
 		MaxWidth: appConfig.AutoOptimize.MaxWidth,
 		// other fields set below
 	}
 
-	switch imageFormat {
-	case vips.ImageTypeJPEG:
-	case vips.ImageTypeWEBP:
-	case vips.ImageTypeAVIF:
-		optimiseJob.Quality = 80
-	default:
+	// determine suitable format
+	avifConfig, avifEnabled := appConfig.AutoOptimize.Formats[core.ImageTypeToFormatName[vips.ImageTypeAVIF]]
+	webpConfig, webpEnabled := appConfig.AutoOptimize.Formats[core.ImageTypeToFormatName[vips.ImageTypeWEBP]]
+	pngConfig, pngEnabled := appConfig.AutoOptimize.Formats[core.ImageTypeToFormatName[vips.ImageTypePNG]]
+	jpegConfig, jpegEnabled := appConfig.AutoOptimize.Formats[core.ImageTypeToFormatName[vips.ImageTypeJPEG]]
+	if nonStandardSupport.AVIF && avifEnabled {
+		optimiseJob.OutType = vips.ImageTypeAVIF
+		optimiseJob.Quality = avifConfig.Quality
+	} else if nonStandardSupport.WEBP && webpEnabled {
+		optimiseJob.OutType = vips.ImageTypeWEBP
+		optimiseJob.Quality = webpConfig.Quality
+	} else if nonStandardSupport.WEBP && webpEnabled {
+	} else if originalImageFormat == vips.ImageTypePNG && pngEnabled {
+		optimiseJob.OutType = vips.ImageTypePNG
+		optimiseJob.Quality = pngConfig.Quality
+	} else if originalImageFormat != vips.ImageTypePNG && jpegEnabled {
+		optimiseJob.OutType = vips.ImageTypeJPEG
+		optimiseJob.Quality = jpegConfig.Quality
+	} else {
+		// no optimizations could be done
 		ctx.Response().Header().Add("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
+	// reserve job slot
 	if err := jobLimiter.AddJob(); err != nil {
 		ctx.Response().Header().Del("Cache-Control")
 		ctx.Response().Header().Add("Retry-After", "5")
@@ -123,7 +131,7 @@ func getAutoOptimized(ctx echo.Context) error {
 	}
 
 	ctx.Response().Header().Add("Content-Optimized", "true")
-	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[imageFormat], img)
+	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[optimiseJob.OutType], img)
 }
 
 type ImageQuery struct {
