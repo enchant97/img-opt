@@ -14,9 +14,15 @@ type PresetOptimizeConfig struct {
 	Presets map[string]PresetConfig `yaml:"presets"`
 }
 
+type TLSConfig struct {
+	CertFile string `yaml:"cert_file" validate:"required"`
+	KeyFile  string `yaml:"key_file" validate:"required"`
+}
+
 type BindConfig struct {
-	Host string `yaml:"host" validate:"required"`
-	Port uint   `yaml:"port" validate:"required"`
+	Host string     `yaml:"host" validate:"required"`
+	Port uint       `yaml:"port" validate:"required"`
+	TLS  *TLSConfig `yaml:"tls"`
 }
 
 type AutoOptimizeConfig struct {

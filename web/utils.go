@@ -64,6 +64,15 @@ func Run(appConfig config.Config) error {
 	e.GET("/o/:path", getOriginalImage)
 	e.GET("/a/:path", getAutoOptimized)
 	e.GET("/p/:path", getPresetOptimizedImage)
+
 	address := fmt.Sprintf("%s:%d", appConfig.Bind.Host, appConfig.Bind.Port)
-	return e.Start(address)
+	if appConfig.Bind.TLS != nil {
+		return e.StartTLS(
+			address,
+			appConfig.Bind.TLS.CertFile,
+			appConfig.Bind.TLS.KeyFile,
+		)
+	} else {
+		return e.Start(address)
+	}
 }
