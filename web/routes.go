@@ -35,7 +35,7 @@ func getOriginalImage(ctx echo.Context) error {
 		return ctx.NoContent(http.StatusNotModified)
 	}
 
-	ctx.Response().Header().Add("Content-Optimized", "false")
+	ctx.Response().Header().Set("Content-Optimized", "false")
 
 	return ctx.File(fullPath)
 }
@@ -49,7 +49,7 @@ func getAutoOptimized(ctx echo.Context) error {
 	}
 	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
-	ctx.Response().Header().Add("Vary", "Accept")
+	ctx.Response().Header().Set("Vary", "Accept")
 	SetCacheHeader(ctx, appConfig)
 
 	if exists, err := core.DoesFileExist(fullPath); err != nil {
@@ -67,7 +67,7 @@ func getAutoOptimized(ctx echo.Context) error {
 
 	// skip any other unneeded processing
 	if !appConfig.AutoOptimize.Enable {
-		ctx.Response().Header().Add("Content-Optimized", "false")
+		ctx.Response().Header().Set("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
@@ -78,7 +78,7 @@ func getAutoOptimized(ctx echo.Context) error {
 
 	if originalImageFormat == vips.ImageTypeSVG {
 		// TODO optimise svg content somehow?
-		ctx.Response().Header().Add("Content-Optimized", "false")
+		ctx.Response().Header().Set("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
@@ -112,14 +112,14 @@ func getAutoOptimized(ctx echo.Context) error {
 		optimiseJob.Quality = jpegConfig.Quality
 	} else {
 		// no optimizations could be done
-		ctx.Response().Header().Add("Content-Optimized", "false")
+		ctx.Response().Header().Set("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
 	// reserve job slot
 	if err := jobLimiter.AddJob(); err != nil {
 		ctx.Response().Header().Del("Cache-Control")
-		ctx.Response().Header().Add("Retry-After", "5")
+		ctx.Response().Header().Set("Retry-After", "5")
 		return ctx.NoContent(http.StatusServiceUnavailable)
 	} else {
 		defer jobLimiter.RemoveJob()
@@ -130,7 +130,11 @@ func getAutoOptimized(ctx echo.Context) error {
 		return err
 	}
 
-	ctx.Response().Header().Add("Content-Optimized", "true")
+	if mimeType, known := core.ImageTypeToMime[originalImageFormat]; known {
+		ctx.Response().Header().Set("Source-Type", mimeType)
+	}
+
+	ctx.Response().Header().Set("Content-Optimized", "true")
 	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[optimiseJob.OutType], img)
 }
 
@@ -170,7 +174,7 @@ func getPresetOptimizedImage(ctx echo.Context) error {
 
 	// just want the original
 	if query.Preset == "" && query.Format == "" {
-		ctx.Response().Header().Add("Content-Optimized", "false")
+		ctx.Response().Header().Set("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
 
@@ -183,7 +187,7 @@ func getPresetOptimizedImage(ctx echo.Context) error {
 			return err
 		}
 		if imageFormat == vips.ImageTypeSVG {
-			ctx.Response().Header().Add("Content-Optimized", "false")
+			ctx.Response().Header().Set("Content-Optimized", "false")
 			return ctx.File(fullPath)
 		}
 		if _, compatible := core.ImageTypeToFormatName[imageFormat]; !compatible {
@@ -215,7 +219,7 @@ func getPresetOptimizedImage(ctx echo.Context) error {
 
 	if err := jobLimiter.AddJob(); err != nil {
 		ctx.Response().Header().Del("Cache-Control")
-		ctx.Response().Header().Add("Retry-After", "5")
+		ctx.Response().Header().Set("Retry-After", "5")
 		return ctx.NoContent(http.StatusServiceUnavailable)
 	} else {
 		defer jobLimiter.RemoveJob()
@@ -226,7 +230,7 @@ func getPresetOptimizedImage(ctx echo.Context) error {
 		return err
 	}
 
-	ctx.Response().Header().Add("Content-Optimized", "true")
+	ctx.Response().Header().Set("Content-Optimized", "true")
 	return ctx.Blob(http.StatusOK, core.ImageTypeToMime[imageFormat], img)
 }
 
