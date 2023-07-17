@@ -35,6 +35,19 @@ func HandleETag(ctx echo.Context, currentETag string) bool {
 	return true
 }
 
+func SetCacheHeader(ctx echo.Context, appConfig config.Config) {
+	var maxAge uint = 86400
+	var maxStaleAge uint = 7200
+	if appConfig.BrowserTTL != nil {
+		maxAge = appConfig.BrowserTTL.Max
+		maxStaleAge = appConfig.BrowserTTL.MaxStale
+	}
+	ctx.Response().Header().Set(
+		"Cache-Control",
+		fmt.Sprintf("public, max-age=%d, stale-while-revalidate=%d", maxAge, maxStaleAge),
+	)
+}
+
 func Run(appConfig config.Config) error {
 	e := echo.New()
 	e.Use(middleware.Recover())

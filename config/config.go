@@ -25,9 +25,15 @@ type AutoOptimizeConfig struct {
 	AVIF     bool `yaml:"avif"`
 }
 
+type BrowserTTLConfig struct {
+	Max      uint `yaml:"max" validate:"required"`
+	MaxStale uint `yaml:"max_stale" validate:"required"`
+}
+
 type Config struct {
 	Bind          BindConfig         `yaml:"bind" validate:"required"`
 	JobLimit      uint               `yaml:"job_limit"`
+	BrowserTTL    *BrowserTTLConfig  `yaml:"browser_ttl"`
 	OriginalsBase string             `yaml:"originals_base" validate:"required"`
 	AutoOptimize  AutoOptimizeConfig `yaml:"auto_optimize" validate:"required"`
 	TypeOptimize  TypeOptimizeConfig `yaml:"type_optimize" validate:"required"`

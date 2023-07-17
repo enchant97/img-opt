@@ -19,7 +19,7 @@ func getOriginalImage(ctx echo.Context) error {
 	}
 	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
-	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
+	SetCacheHeader(ctx, appConfig)
 
 	if exists, err := core.DoesFileExist(fullPath); err != nil {
 		ctx.Logger().Error(err)
@@ -49,7 +49,7 @@ func getAutoOptimized(ctx echo.Context) error {
 	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
 	ctx.Response().Header().Add("Vary", "Accept")
-	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
+	SetCacheHeader(ctx, appConfig)
 
 	if exists, err := core.DoesFileExist(fullPath); err != nil {
 		ctx.Logger().Error(err)
@@ -139,7 +139,7 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 	}
 	fullPath := path.Join(appConfig.OriginalsBase, relativePath)
 
-	ctx.Response().Header().Add("Cache-Control", "public, max-age=604800, stale-while-revalidate=86400")
+	SetCacheHeader(ctx, appConfig)
 
 	var query ImageQuery
 	if err := BindAndValidate(ctx, &query); err != nil {
