@@ -127,11 +127,11 @@ func getAutoOptimized(ctx echo.Context) error {
 }
 
 type ImageQuery struct {
-	Type   string `query:"type"`
+	Preset string `query:"preset"`
 	Format string `query:"format"`
 }
 
-func getTypeOptimizedImage(ctx echo.Context) error {
+func getPresetOptimizedImage(ctx echo.Context) error {
 	appConfig := ctx.Get(AppConfigKey).(config.Config)
 	jobLimiter := ctx.Get(JobLimiterKey).(*core.JobLimiter)
 	relativePath, err := url.QueryUnescape(ctx.Param("path"))
@@ -161,7 +161,7 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 	}
 
 	// just want the original
-	if query.Type == "" && query.Format == "" {
+	if query.Preset == "" && query.Format == "" {
 		ctx.Response().Header().Add("Content-Optimized", "false")
 		return ctx.File(fullPath)
 	}
@@ -194,15 +194,15 @@ func getTypeOptimizedImage(ctx echo.Context) error {
 		// other fields set below
 	}
 
-	if optConfig, exists := appConfig.TypeOptimize.Types[query.Type]; exists {
-		if ifConfig, exists := optConfig.Formats[query.Format]; exists {
-			optimiseJob.Quality = ifConfig.Quality
-			optimiseJob.MaxWidth = &optConfig.MaxWidth
+	if presetConfig, exists := appConfig.PresetOptimize.Presets[query.Preset]; exists {
+		if formatConfig, exists := presetConfig.Formats[query.Format]; exists {
+			optimiseJob.Quality = formatConfig.Quality
+			optimiseJob.MaxWidth = &presetConfig.MaxWidth
 		} else {
-			return ctx.JSON(http.StatusBadRequest, "unsupported type+format requested")
+			return ctx.JSON(http.StatusBadRequest, "unsupported preset+format requested")
 		}
 	} else {
-		return ctx.JSON(http.StatusBadRequest, "unsupported type requested")
+		return ctx.JSON(http.StatusBadRequest, "unsupported preset requested")
 	}
 
 	if err := jobLimiter.AddJob(); err != nil {

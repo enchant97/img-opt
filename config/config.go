@@ -1,17 +1,17 @@
 package config
 
-type TypeFormatConfig struct {
+type FormatConfig struct {
 	Quality int `yaml:"quality" validate:"required"`
 }
 
-type TypeConfig struct {
-	MaxWidth int                         `yaml:"max_width" validate:"required"`
-	Formats  map[string]TypeFormatConfig `yaml:"formats" validate:"required"`
+type PresetConfig struct {
+	MaxWidth int                     `yaml:"max_width" validate:"required"`
+	Formats  map[string]FormatConfig `yaml:"formats" validate:"required"`
 }
 
-type TypeOptimizeConfig struct {
-	Enable bool                  `yaml:"enable" validate:"required"`
-	Types  map[string]TypeConfig `yaml:"types"`
+type PresetOptimizeConfig struct {
+	Enable  bool                    `yaml:"enable" validate:"required"`
+	Presets map[string]PresetConfig `yaml:"presets"`
 }
 
 type BindConfig struct {
@@ -31,11 +31,11 @@ type BrowserTTLConfig struct {
 }
 
 type Config struct {
-	Bind          BindConfig         `yaml:"bind" validate:"required"`
-	Metrics       bool               `yaml:"metrics"`
-	JobLimit      uint               `yaml:"job_limit"`
-	BrowserTTL    *BrowserTTLConfig  `yaml:"browser_ttl"`
-	OriginalsBase string             `yaml:"originals_base" validate:"required"`
-	AutoOptimize  AutoOptimizeConfig `yaml:"auto_optimize" validate:"required"`
-	TypeOptimize  TypeOptimizeConfig `yaml:"type_optimize" validate:"required"`
+	Bind           BindConfig           `yaml:"bind" validate:"required"`
+	Metrics        bool                 `yaml:"metrics"`
+	JobLimit       uint                 `yaml:"job_limit"`
+	BrowserTTL     *BrowserTTLConfig    `yaml:"browser_ttl"`
+	OriginalsBase  string               `yaml:"originals_base" validate:"required"`
+	AutoOptimize   AutoOptimizeConfig   `yaml:"auto_optimize" validate:"required"`
+	PresetOptimize PresetOptimizeConfig `yaml:"preset_optimize" validate:"required"`
 }

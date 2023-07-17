@@ -63,7 +63,7 @@ func Run(appConfig config.Config) error {
 	}
 	e.GET("/o/:path", getOriginalImage)
 	e.GET("/a/:path", getAutoOptimized)
-	e.GET("/t/:path", getTypeOptimizedImage)
+	e.GET("/p/:path", getPresetOptimizedImage)
 	address := fmt.Sprintf("%s:%d", appConfig.Bind.Host, appConfig.Bind.Port)
 	return e.Start(address)
 }
