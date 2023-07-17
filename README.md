@@ -15,6 +15,7 @@ A micro-service allowing for dynamic optimization of images. Supporting new form
     - Resize images
     - Convert
         - JPEG
+        - PNG
         - WEBP
         - AVIF
     - Quality settings
