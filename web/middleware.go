@@ -19,11 +19,18 @@ func appConfigMiddleware(appConfig config.Config) echo.MiddlewareFunc {
 }
 
 func jobRunLimiterMiddleware(appConfig config.Config) echo.MiddlewareFunc {
-    jobLimiter := core.NewJobLimiter(appConfig.JobLimit)
+	jobLimiter := core.NewJobLimiter(appConfig.JobLimit)
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
 		return func(c echo.Context) error {
 			c.Set(JobLimiterKey, jobLimiter)
 			return next(c)
 		}
+	}
+}
+
+func serverNameMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		c.Response().Header().Set("Server", core.AppName)
+		return next(c)
 	}
 }

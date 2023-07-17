@@ -2,6 +2,7 @@ package web
 
 import (
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/enchant97/img-opt/config"
@@ -50,11 +51,14 @@ func SetCacheHeader(ctx echo.Context, appConfig config.Config) {
 
 func Run(appConfig config.Config) error {
 	e := echo.New()
+	e.HideBanner = true
+	e.RouteNotFound("*", func(c echo.Context) error { return c.NoContent(http.StatusNotFound) })
 	e.Use(middleware.Recover())
 	e.Use(middleware.Logger())
 	v := Validator{}.New()
 	e.Validator = &v
 	e.Use(
+		serverNameMiddleware,
 		appConfigMiddleware(appConfig),
 		jobRunLimiterMiddleware(appConfig),
 	)

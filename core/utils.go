@@ -10,6 +10,8 @@ import (
 	"github.com/davidbyttow/govips/v2/vips"
 )
 
+const AppName = "Img Opt"
+
 var UnknownImageTypeErr = errors.New("unknown image type")
 
 var ImageTypeToFormatName = map[vips.ImageType]string{
